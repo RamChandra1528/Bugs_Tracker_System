@@ -9,7 +9,8 @@ const RegisterForm = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'developer' as 'admin' | 'developer' | 'tester',
+    role: 'developer' as 'admin' | 'developer' | 'tester' | 'manager',
+    department: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -35,7 +36,7 @@ const RegisterForm = () => {
     setIsLoading(true);
 
     try {
-      const success = await register(formData.name, formData.email, formData.password, formData.role);
+      const success = await register(formData.name, formData.email, formData.password, formData.role, formData.department);
       if (success) {
         navigate('/dashboard');
       } else {
@@ -128,8 +129,27 @@ const RegisterForm = () => {
                 >
                   <option value="tester">Tester</option>
                   <option value="developer">Developer</option>
+                  <option value="manager">Manager</option>
                   <option value="admin">Admin</option>
                 </select>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-2">
+                Department (Optional)
+              </label>
+              <div className="relative">
+                <Shield className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                <input
+                  id="department"
+                  name="department"
+                  type="text"
+                  value={formData.department}
+                  onChange={handleChange}
+                  className="appearance-none relative block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g., Engineering, QA, Product"
+                />
               </div>
             </div>
 

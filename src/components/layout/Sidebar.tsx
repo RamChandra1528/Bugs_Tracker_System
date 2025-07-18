@@ -6,7 +6,10 @@ import {
   FolderOpen, 
   Bug, 
   Users, 
+  Building,
   BarChart3, 
+  TrendingUp,
+  Shield,
   Settings,
   LogOut 
 } from 'lucide-react';
@@ -20,8 +23,11 @@ const Sidebar = () => {
     { icon: Home, label: 'Dashboard', path: '/dashboard' },
     { icon: FolderOpen, label: 'Projects', path: '/projects' },
     { icon: Bug, label: 'Bugs', path: '/bugs' },
+    { icon: Building, label: 'Teams', path: '/teams' },
     { icon: Users, label: 'Users', path: '/users', adminOnly: true },
     { icon: BarChart3, label: 'Reports', path: '/reports' },
+    { icon: TrendingUp, label: 'Analytics', path: '/analytics' },
+    { icon: Shield, label: 'Security', path: '/security' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
 

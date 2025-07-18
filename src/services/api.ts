@@ -40,20 +40,20 @@ class ApiService {
   }
 
   // Auth endpoints
-  async login(email: string, password: string) {
+  async login(email: string, password: string, twoFactorCode?: string) {
     const response = await fetch(`${this.baseURL}/auth/login`, {
       method: 'POST',
       headers: this.getHeaders(),
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, twoFactorCode }),
     });
     return this.handleResponse(response);
   }
 
-  async register(name: string, email: string, password: string, role: string) {
+  async register(name: string, email: string, password: string, role: string, department?: string) {
     const response = await fetch(`${this.baseURL}/auth/register`, {
       method: 'POST',
       headers: this.getHeaders(),
-      body: JSON.stringify({ name, email, password, role }),
+      body: JSON.stringify({ name, email, password, role, department }),
     });
     return this.handleResponse(response);
   }
@@ -65,7 +65,7 @@ class ApiService {
     return this.handleResponse(response);
   }
 
-  async updateProfile(data: { name: string; email: string }) {
+  async updateProfile(data: any) {
     const response = await fetch(`${this.baseURL}/auth/profile`, {
       method: 'PUT',
       headers: this.getHeaders(),
@@ -79,6 +79,84 @@ class ApiService {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    return this.handleResponse(response);
+  }
+
+  async enable2FA() {
+    const response = await fetch(`${this.baseURL}/auth/enable-2fa`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async verify2FA(token: string) {
+    const response = await fetch(`${this.baseURL}/auth/verify-2fa`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ token }),
+    });
+    return this.handleResponse(response);
+  }
+
+  async disable2FA(token: string) {
+    const response = await fetch(`${this.baseURL}/auth/disable-2fa`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ token }),
+    });
+    return this.handleResponse(response);
+  }
+
+  // Department endpoints
+  async getDepartments() {
+    const response = await fetch(`${this.baseURL}/departments`, {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async createDepartment(data: any) {
+    const response = await fetch(`${this.baseURL}/departments`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return this.handleResponse(response);
+  }
+
+  async updateDepartment(id: string, data: any) {
+    const response = await fetch(`${this.baseURL}/departments/${id}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return this.handleResponse(response);
+  }
+
+  // Team endpoints
+  async getTeams() {
+    const response = await fetch(`${this.baseURL}/teams`, {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async createTeam(data: any) {
+    const response = await fetch(`${this.baseURL}/teams`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return this.handleResponse(response);
+  }
+
+  async updateTeam(id: string, data: any) {
+    const response = await fetch(`${this.baseURL}/teams/${id}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
     });
     return this.handleResponse(response);
   }
@@ -207,6 +285,24 @@ class ApiService {
     return this.handleResponse(response);
   }
 
+  // Time tracking endpoints
+  async logTime(bugId: string, hours: number, description: string) {
+    const response = await fetch(`${this.baseURL}/time-entries`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ bugId, hours, description }),
+    });
+    return this.handleResponse(response);
+  }
+
+  async getTimeEntries(bugId?: string) {
+    const queryString = bugId ? `?bugId=${bugId}` : '';
+    const response = await fetch(`${this.baseURL}/time-entries${queryString}`, {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
   // Comments endpoints
   async getComments(bugId: string) {
     const response = await fetch(`${this.baseURL}/comments/bug/${bugId}`, {
@@ -236,6 +332,173 @@ class ApiService {
   async deleteComment(commentId: string) {
     const response = await fetch(`${this.baseURL}/comments/${commentId}`, {
       method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  // Notifications endpoints
+  async getNotifications() {
+    const response = await fetch(`${this.baseURL}/notifications`, {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async markNotificationRead(notificationId: string) {
+    const response = await fetch(`${this.baseURL}/notifications/${notificationId}/read`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async markAllNotificationsRead() {
+    const response = await fetch(`${this.baseURL}/notifications/read-all`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  // Saved searches endpoints
+  async getSavedSearches() {
+    const response = await fetch(`${this.baseURL}/saved-searches`, {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async createSavedSearch(name: string, filters: any, isPublic = false) {
+    const response = await fetch(`${this.baseURL}/saved-searches`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ name, filters, isPublic }),
+    });
+    return this.handleResponse(response);
+  }
+
+  async deleteSavedSearch(searchId: string) {
+    const response = await fetch(`${this.baseURL}/saved-searches/${searchId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  // Dashboard widgets endpoints
+  async getDashboardWidgets() {
+    const response = await fetch(`${this.baseURL}/dashboard/widgets`, {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async createDashboardWidget(widget: any) {
+    const response = await fetch(`${this.baseURL}/dashboard/widgets`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(widget),
+    });
+    return this.handleResponse(response);
+  }
+
+  async updateDashboardWidget(widgetId: string, widget: any) {
+    const response = await fetch(`${this.baseURL}/dashboard/widgets/${widgetId}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(widget),
+    });
+    return this.handleResponse(response);
+  }
+
+  async deleteDashboardWidget(widgetId: string) {
+    const response = await fetch(`${this.baseURL}/dashboard/widgets/${widgetId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  // Holiday/vacation endpoints
+  async getHolidays() {
+    const response = await fetch(`${this.baseURL}/holidays`, {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async createHoliday(holiday: any) {
+    const response = await fetch(`${this.baseURL}/holidays`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(holiday),
+    });
+    return this.handleResponse(response);
+  }
+
+  async updateHoliday(holidayId: string, holiday: any) {
+    const response = await fetch(`${this.baseURL}/holidays/${holidayId}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(holiday),
+    });
+    return this.handleResponse(response);
+  }
+
+  // Analytics endpoints
+  async getBurndownChart(projectId: string, sprintId?: string) {
+    const queryString = sprintId ? `?sprintId=${sprintId}` : '';
+    const response = await fetch(`${this.baseURL}/analytics/burndown/${projectId}${queryString}`, {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async getDeveloperPerformance(userId?: string, timeframe = '30d') {
+    const queryString = userId ? `?userId=${userId}&timeframe=${timeframe}` : `?timeframe=${timeframe}`;
+    const response = await fetch(`${this.baseURL}/analytics/performance${queryString}`, {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async getAdvancedReports(type: string, params?: any) {
+    const queryString = params ? new URLSearchParams(params).toString() : '';
+    const response = await fetch(`${this.baseURL}/analytics/reports/${type}${queryString ? `?${queryString}` : ''}`, {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  // Session management
+  async getSessions() {
+    const response = await fetch(`${this.baseURL}/auth/sessions`, {
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async revokeSession(sessionId: string) {
+    const response = await fetch(`${this.baseURL}/auth/sessions/${sessionId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  async revokeAllSessions() {
+    const response = await fetch(`${this.baseURL}/auth/sessions/revoke-all`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  // Audit logs
+  async getAuditLogs(params?: any) {
+    const queryString = params ? new URLSearchParams(params).toString() : '';
+    const response = await fetch(`${this.baseURL}/audit-logs${queryString ? `?${queryString}` : ''}`, {
       headers: this.getHeaders(),
     });
     return this.handleResponse(response);

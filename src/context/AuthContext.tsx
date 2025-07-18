@@ -4,11 +4,12 @@ import { User } from '../types';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string, role: 'admin' | 'developer' | 'tester') => Promise<boolean>;
+  login: (email: string, password: string, twoFactorCode?: string) => Promise<boolean>;
+  register: (name: string, email: string, password: string, role: 'admin' | 'developer' | 'tester' | 'manager', department?: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
   loading: boolean;
+  updateUser: (userData: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -51,9 +52,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string, twoFactorCode?: string): Promise<boolean> => {
     try {
-      const response = await apiService.login(email, password);
+      const response = await apiService.login(email, password, twoFactorCode);
       if (response.success) {
         apiService.setToken(response.token);
         setUser(response.user);
@@ -67,9 +68,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (name: string, email: string, password: string, role: 'admin' | 'developer' | 'tester'): Promise<boolean> => {
+  const register = async (name: string, email: string, password: string, role: 'admin' | 'developer' | 'tester' | 'manager', department?: string): Promise<boolean> => {
     try {
-      const response = await apiService.register(name, email, password, role);
+      const response = await apiService.register(name, email, password, role, department);
       if (response.success) {
         apiService.setToken(response.token);
         setUser(response.user);
@@ -89,8 +90,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAuthenticated(false);
   };
 
+  const updateUser = (userData: Partial<User>) => {
+    if (user) {
+      setUser({ ...user, ...userData });
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isAuthenticated, loading }}>
+    <AuthContext.Provider value={{ user, login, register, logout, isAuthenticated, loading, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -8,8 +8,11 @@ import RegisterForm from './components/auth/RegisterForm';
 import Dashboard from './pages/Dashboard';
 import Projects from './pages/Projects';
 import Bugs from './pages/Bugs';
+import Teams from './pages/Teams';
 import Users from './pages/Users';
 import Reports from './pages/Reports';
+import Analytics from './pages/Analytics';
+import Security from './pages/Security';
 import Settings from './pages/Settings';
 
 function App() {
@@ -29,8 +32,11 @@ function App() {
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="projects" element={<Projects />} />
               <Route path="bugs" element={<Bugs />} />
+              <Route path="teams" element={<Teams />} />
               <Route path="users" element={<Users />} />
               <Route path="reports" element={<Reports />} />
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="security" element={<Security />} />
               <Route path="settings" element={<Settings />} />
             </Route>
           </Routes>
