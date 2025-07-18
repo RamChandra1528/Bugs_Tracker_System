@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Mail, Shield, Calendar, MoreHorizontal } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useStorage } from '../hooks/useStorage';
-import { User } from '../types';
+import { apiService } from '../services/api';
 import Card from '../components/common/Card';
 import Modal from '../components/common/Modal';
 import Badge from '../components/common/Badge';
@@ -10,33 +9,51 @@ import { formatDate } from '../utils/formatters';
 
 const Users = () => {
   const { user: currentUser } = useAuth();
-  const [users, setUsers] = useStorage<User[]>('users', []);
+  const [users, setUsers] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    role: 'developer' as User['role'],
+    password: '',
+    role: 'developer' as 'admin' | 'developer' | 'tester',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const newUser: User = {
-      id: Date.now().toString(),
-      name: formData.name,
-      email: formData.email,
-      role: formData.role,
-      createdAt: new Date(),
-    };
+  useEffect(() => {
+    loadUsers();
+  }, []);
 
-    setUsers([...users, newUser]);
-    setFormData({ name: '', email: '', role: 'developer' });
-    setShowCreateModal(false);
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.getUsers();
+      if (response.success) {
+        setUsers(response.users);
+      }
+    } catch (error) {
+      console.error('Failed to load users:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filteredUsers = users.filter(user => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await apiService.createUser(formData);
+      if (response.success) {
+        setUsers([response.user, ...users]);
+        setFormData({ name: '', email: '', password: '', role: 'developer' });
+        setShowCreateModal(false);
+      }
+    } catch (error) {
+      console.error('Failed to create user:', error);
+    }
+  };
+
+  const filteredUsers = users.filter((user: any) => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = filterRole === 'all' || user.role === filterRole;
@@ -44,18 +61,32 @@ const Users = () => {
     return matchesSearch && matchesRole;
   });
 
-  const deleteUser = (userId: string) => {
+  const deleteUser = async (userId: string) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(user => user.id !== userId));
+      try {
+        const response = await apiService.deleteUser(userId);
+        if (response.success) {
+          setUsers(users.filter((user: any) => user._id !== userId));
+        }
+      } catch (error) {
+        console.error('Failed to delete user:', error);
+      }
     }
   };
 
-  const updateUserRole = (userId: string, newRole: User['role']) => {
-    setUsers(prevUsers =>
-      prevUsers.map(user =>
-        user.id === userId ? { ...user, role: newRole } : user
-      )
-    );
+  const updateUserRole = async (userId: string, newRole: string) => {
+    try {
+      const response = await apiService.updateUser(userId, { role: newRole });
+      if (response.success) {
+        setUsers(prevUsers =>
+          prevUsers.map((user: any) =>
+            user._id === userId ? { ...user, role: newRole } : user
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Failed to update user role:', error);
+    }
   };
 
   if (currentUser?.role !== 'admin') {
@@ -67,6 +98,25 @@ const Users = () => {
           <p className="mt-1 text-sm text-gray-500">
             You don't have permission to view this page.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-48 mb-6"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white rounded-lg shadow-sm border p-6">
+                <div className="h-6 bg-gray-200 rounded w-32 mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -113,8 +163,8 @@ const Users = () => {
 
       {/* User Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredUsers.map((user) => (
-          <Card key={user.id} className="hover:shadow-md transition-shadow">
+        {filteredUsers.map((user: any) => (
+          <Card key={user._id} className="hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
@@ -139,9 +189,9 @@ const Users = () => {
                 <span className="text-sm text-gray-600">Role:</span>
                 <select
                   value={user.role}
-                  onChange={(e) => updateUserRole(user.id, e.target.value as User['role'])}
+                  onChange={(e) => updateUserRole(user._id, e.target.value)}
                   className="text-sm px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={user.id === currentUser?.id}
+                  disabled={user._id === currentUser?.id}
                 >
                   <option value="admin">Admin</option>
                   <option value="developer">Developer</option>
@@ -151,7 +201,7 @@ const Users = () => {
 
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Status:</span>
-                <Badge variant="status" value="active" />
+                <Badge variant="status" value={user.isActive ? 'active' : 'inactive'} />
               </div>
 
               <div className="flex items-center space-x-2 text-sm text-gray-500">
@@ -169,9 +219,9 @@ const Users = () => {
                   <Mail size={16} />
                   <span>Email</span>
                 </button>
-                {user.id !== currentUser?.id && (
+                {user._id !== currentUser?.id && (
                   <button
-                    onClick={() => deleteUser(user.id)}
+                    onClick={() => deleteUser(user._id)}
                     className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded hover:bg-red-100 transition-colors"
                   >
                     Delete
@@ -220,13 +270,27 @@ const Users = () => {
           </div>
 
           <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+              Password
+            </label>
+            <input
+              type="password"
+              id="password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          <div>
             <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
               Role
             </label>
             <select
               id="role"
               value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as User['role'] })}
+              onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="tester">Tester</option>

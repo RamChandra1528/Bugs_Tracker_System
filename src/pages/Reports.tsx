@@ -1,43 +1,125 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { useStorage } from '../hooks/useStorage';
-import { Bug, Project, User } from '../types';
+import { apiService } from '../services/api';
 import Card from '../components/common/Card';
 import BugChart from '../components/dashboard/BugChart';
 import { Download, TrendingUp, TrendingDown } from 'lucide-react';
 
 const Reports = () => {
-  const [bugs] = useStorage<Bug[]>('bugs', []);
-  const [projects] = useStorage<Project[]>('projects', []);
-  const [users] = useStorage<User[]>('users', []);
+  const [stats, setStats] = useState({
+    totalBugs: 0,
+    openBugs: 0,
+    resolvedBugs: 0,
+    criticalBugs: 0
+  });
+  const [chartData, setChartData] = useState({
+    statusData: [],
+    severityData: [],
+    projectData: []
+  });
+  const [loading, setLoading] = useState(true);
 
-  // Generate data for charts
-  const statusData = [
-    { name: 'Open', value: bugs.filter(b => b.status === 'open').length, color: '#3B82F6' },
-    { name: 'In Progress', value: bugs.filter(b => b.status === 'in-progress').length, color: '#8B5CF6' },
-    { name: 'Resolved', value: bugs.filter(b => b.status === 'resolved').length, color: '#10B981' },
-    { name: 'Closed', value: bugs.filter(b => b.status === 'closed').length, color: '#6B7280' },
-  ];
+  useEffect(() => {
+    loadReportsData();
+  }, []);
 
-  const severityData = [
-    { name: 'Critical', value: bugs.filter(b => b.severity === 'critical').length, color: '#EF4444' },
-    { name: 'High', value: bugs.filter(b => b.severity === 'high').length, color: '#F97316' },
-    { name: 'Medium', value: bugs.filter(b => b.severity === 'medium').length, color: '#F59E0B' },
-    { name: 'Low', value: bugs.filter(b => b.severity === 'low').length, color: '#10B981' },
-  ];
+  const loadReportsData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load bug statistics
+      const bugStatsResponse = await apiService.getBugStats();
+      if (bugStatsResponse.success) {
+        const { overview, byStatus, bySeverity, byProject } = bugStatsResponse.stats;
+        
+        setStats({
+          totalBugs: overview.total,
+          openBugs: overview.open,
+          resolvedBugs: overview.resolved,
+          criticalBugs: overview.critical
+        });
 
-  const projectData = projects.map(project => ({
-    name: project.name,
-    bugs: bugs.filter(bug => bug.projectId === project.id).length,
-    open: bugs.filter(bug => bug.projectId === project.id && bug.status === 'open').length,
-    resolved: bugs.filter(bug => bug.projectId === project.id && bug.status === 'resolved').length,
-  }));
+        // Format chart data
+        const statusData = byStatus.map((item: any) => ({
+          name: item._id.charAt(0).toUpperCase() + item._id.slice(1).replace('-', ' '),
+          value: item.count,
+          color: getStatusColor(item._id)
+        }));
 
-  const userPerformanceData = users.map(user => ({
-    name: user.name,
-    reported: bugs.filter(bug => bug.reportedBy === user.id).length,
-    resolved: bugs.filter(bug => bug.assignedTo === user.id && bug.status === 'resolved').length,
-  }));
+        const severityData = bySeverity.map((item: any) => ({
+          name: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+          value: item.count,
+          color: getSeverityColor(item._id)
+        }));
+
+        const projectData = byProject.map((item: any) => ({
+          name: item.name,
+          bugs: item.count,
+          open: Math.floor(item.count * 0.3), // Mock data
+          resolved: Math.floor(item.count * 0.6) // Mock data
+        }));
+
+        setChartData({ statusData, severityData, projectData });
+      }
+    } catch (error) {
+      console.error('Failed to load reports data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'open': return '#3B82F6';
+      case 'in-progress': return '#8B5CF6';
+      case 'resolved': return '#10B981';
+      case 'closed': return '#6B7280';
+      default: return '#6B7280';
+    }
+  };
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'critical': return '#EF4444';
+      case 'high': return '#F97316';
+      case 'medium': return '#F59E0B';
+      case 'low': return '#10B981';
+      default: return '#6B7280';
+    }
+  };
+
+  const exportToCSV = async () => {
+    try {
+      const bugsResponse = await apiService.getBugs();
+      if (bugsResponse.success) {
+        const csvData = bugsResponse.bugs.map((bug: any) => ({
+          Title: bug.title,
+          Project: bug.project?.name || 'Unknown',
+          Status: bug.status,
+          Severity: bug.severity,
+          Priority: bug.priority,
+          'Reported By': bug.reportedBy?.name || 'Unknown',
+          'Assigned To': bug.assignedTo?.name || 'Unassigned',
+          'Created At': new Date(bug.createdAt).toLocaleDateString(),
+        }));
+
+        const csvContent = [
+          Object.keys(csvData[0]).join(','),
+          ...csvData.map(row => Object.values(row).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'bug-report.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Failed to export CSV:', error);
+    }
+  };
 
   // Generate trend data (mock data for demo)
   const trendData = [
@@ -49,31 +131,23 @@ const Reports = () => {
     { month: 'Jun', bugs: 25, resolved: 19 },
   ];
 
-  const exportToCSV = () => {
-    const csvData = bugs.map(bug => ({
-      Title: bug.title,
-      Project: projects.find(p => p.id === bug.projectId)?.name || 'Unknown',
-      Status: bug.status,
-      Severity: bug.severity,
-      Priority: bug.priority,
-      'Reported By': users.find(u => u.id === bug.reportedBy)?.name || 'Unknown',
-      'Assigned To': bug.assignedTo ? users.find(u => u.id === bug.assignedTo)?.name || 'Unknown' : 'Unassigned',
-      'Created At': new Date(bug.createdAt).toLocaleDateString(),
-    }));
-
-    const csvContent = [
-      Object.keys(csvData[0]).join(','),
-      ...csvData.map(row => Object.values(row).join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'bug-report.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-48 mb-6"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white rounded-lg shadow-sm border p-6">
+                <div className="h-4 bg-gray-200 rounded w-24 mb-4"></div>
+                <div className="h-8 bg-gray-200 rounded w-16"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -92,7 +166,7 @@ const Reports = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="text-center">
           <h3 className="text-lg font-semibold text-gray-900">Total Bugs</h3>
-          <p className="text-3xl font-bold text-blue-600 mt-2">{bugs.length}</p>
+          <p className="text-3xl font-bold text-blue-600 mt-2">{stats.totalBugs}</p>
           <div className="flex items-center justify-center mt-2 text-sm text-green-600">
             <TrendingUp size={16} />
             <span className="ml-1">+12% from last month</span>
@@ -101,9 +175,7 @@ const Reports = () => {
 
         <Card className="text-center">
           <h3 className="text-lg font-semibold text-gray-900">Open Bugs</h3>
-          <p className="text-3xl font-bold text-red-600 mt-2">
-            {bugs.filter(b => b.status === 'open').length}
-          </p>
+          <p className="text-3xl font-bold text-red-600 mt-2">{stats.openBugs}</p>
           <div className="flex items-center justify-center mt-2 text-sm text-red-600">
             <TrendingUp size={16} />
             <span className="ml-1">+8% from last month</span>
@@ -112,9 +184,7 @@ const Reports = () => {
 
         <Card className="text-center">
           <h3 className="text-lg font-semibold text-gray-900">Resolved Bugs</h3>
-          <p className="text-3xl font-bold text-green-600 mt-2">
-            {bugs.filter(b => b.status === 'resolved').length}
-          </p>
+          <p className="text-3xl font-bold text-green-600 mt-2">{stats.resolvedBugs}</p>
           <div className="flex items-center justify-center mt-2 text-sm text-green-600">
             <TrendingUp size={16} />
             <span className="ml-1">+15% from last month</span>
@@ -123,9 +193,7 @@ const Reports = () => {
 
         <Card className="text-center">
           <h3 className="text-lg font-semibold text-gray-900">Critical Issues</h3>
-          <p className="text-3xl font-bold text-red-600 mt-2">
-            {bugs.filter(b => b.severity === 'critical').length}
-          </p>
+          <p className="text-3xl font-bold text-red-600 mt-2">{stats.criticalBugs}</p>
           <div className="flex items-center justify-center mt-2 text-sm text-red-600">
             <TrendingDown size={16} />
             <span className="ml-1">-3% from last month</span>
@@ -135,8 +203,8 @@ const Reports = () => {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <BugChart data={statusData} title="Bug Distribution by Status" />
-        <BugChart data={severityData} title="Bug Distribution by Severity" />
+        <BugChart data={chartData.statusData} title="Bug Distribution by Status" />
+        <BugChart data={chartData.severityData} title="Bug Distribution by Severity" />
       </div>
 
       {/* Bar Charts */}
@@ -144,7 +212,7 @@ const Reports = () => {
         <Card>
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Bugs by Project</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={projectData}>
+            <BarChart data={chartData.projectData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
@@ -157,90 +225,17 @@ const Reports = () => {
         </Card>
 
         <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">User Performance</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Bug Trends Over Time</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={userPerformanceData}>
+            <LineChart data={trendData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
+              <XAxis dataKey="month" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey="reported" fill="#F59E0B" name="Reported" />
-              <Bar dataKey="resolved" fill="#10B981" name="Resolved" />
-            </BarChart>
+              <Line type="monotone" dataKey="bugs" stroke="#EF4444" name="Bugs Reported" />
+              <Line type="monotone" dataKey="resolved" stroke="#10B981" name="Bugs Resolved" />
+            </LineChart>
           </ResponsiveContainer>
-        </Card>
-      </div>
-
-      {/* Trend Chart */}
-      <Card>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Bug Trends Over Time</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={trendData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" />
-            <YAxis />
-            <Tooltip />
-            <Line type="monotone" dataKey="bugs" stroke="#EF4444" name="Bugs Reported" />
-            <Line type="monotone" dataKey="resolved" stroke="#10B981" name="Bugs Resolved" />
-          </LineChart>
-        </ResponsiveContainer>
-      </Card>
-
-      {/* Detailed Statistics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Project Statistics</h3>
-          <div className="space-y-3">
-            {projects.map(project => {
-              const projectBugs = bugs.filter(bug => bug.projectId === project.id);
-              const criticalBugs = projectBugs.filter(bug => bug.severity === 'critical');
-              const resolvedBugs = projectBugs.filter(bug => bug.status === 'resolved');
-              
-              return (
-                <div key={project.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <h4 className="font-medium text-gray-900">{project.name}</h4>
-                    <p className="text-sm text-gray-600">
-                      {projectBugs.length} total bugs • {criticalBugs.length} critical
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-green-600">
-                      {projectBugs.length ? Math.round((resolvedBugs.length / projectBugs.length) * 100) : 0}%
-                    </p>
-                    <p className="text-xs text-gray-500">Resolution Rate</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-
-        <Card>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Performance</h3>
-          <div className="space-y-3">
-            {users.filter(user => user.role === 'developer').map(user => {
-              const assignedBugs = bugs.filter(bug => bug.assignedTo === user.id);
-              const resolvedBugs = assignedBugs.filter(bug => bug.status === 'resolved');
-              
-              return (
-                <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <h4 className="font-medium text-gray-900">{user.name}</h4>
-                    <p className="text-sm text-gray-600">
-                      {assignedBugs.length} assigned bugs
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-green-600">
-                      {assignedBugs.length ? Math.round((resolvedBugs.length / assignedBugs.length) * 100) : 0}%
-                    </p>
-                    <p className="text-xs text-gray-500">Resolution Rate</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </Card>
       </div>
     </div>

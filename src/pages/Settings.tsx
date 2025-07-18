@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { apiService } from '../services/api';
 import { User, Mail, Lock, Shield, Bell, Save } from 'lucide-react';
 import Card from '../components/common/Card';
 
@@ -23,18 +24,28 @@ const Settings = () => {
 
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleProfileSubmit = (e: React.FormEvent) => {
+  const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await apiService.updateProfile({
+        name: profileData.name,
+        email: profileData.email
+      });
+      
+      if (response.success) {
+        alert('Profile updated successfully!');
+      }
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      alert('Failed to update profile');
+    } finally {
       setIsSaving(false);
-      alert('Profile updated successfully!');
-    }, 1000);
+    }
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (profileData.newPassword !== profileData.confirmPassword) {
@@ -44,17 +55,27 @@ const Settings = () => {
 
     setIsSaving(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await apiService.changePassword(
+        profileData.currentPassword,
+        profileData.newPassword
+      );
+      
+      if (response.success) {
+        setProfileData(prev => ({
+          ...prev,
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        }));
+        alert('Password updated successfully!');
+      }
+    } catch (error) {
+      console.error('Failed to update password:', error);
+      alert('Failed to update password');
+    } finally {
       setIsSaving(false);
-      setProfileData(prev => ({
-        ...prev,
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      }));
-      alert('Password updated successfully!');
-    }, 1000);
+    }
   };
 
   const handleNotificationSubmit = (e: React.FormEvent) => {

@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Users, Calendar, MoreHorizontal } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useStorage } from '../hooks/useStorage';
-import { Project, User, Bug } from '../types';
+import { apiService } from '../services/api';
 import Card from '../components/common/Card';
 import Modal from '../components/common/Modal';
 import Badge from '../components/common/Badge';
@@ -10,33 +9,58 @@ import { formatDate } from '../utils/formatters';
 
 const Projects = () => {
   const { user } = useAuth();
-  const [projects, setProjects] = useStorage<Project[]>('projects', []);
-  const [users] = useStorage<User[]>('users', []);
-  const [bugs] = useStorage<Bug[]>('bugs', []);
+  const [projects, setProjects] = useState([]);
+  const [users, setUsers] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     members: [] as string[],
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [projectsResponse, usersResponse] = await Promise.all([
+        apiService.getProjects(),
+        apiService.getUsers()
+      ]);
+
+      if (projectsResponse.success) {
+        setProjects(projectsResponse.projects);
+      }
+      if (usersResponse.success) {
+        setUsers(usersResponse.users);
+      }
+    } catch (error) {
+      console.error('Failed to load data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    try {
+      const response = await apiService.createProject({
+        name: formData.name,
+        description: formData.description,
+        members: formData.members,
+      });
 
-    const newProject: Project = {
-      id: Date.now().toString(),
-      name: formData.name,
-      description: formData.description,
-      members: [user.id, ...formData.members],
-      createdAt: new Date(),
-      createdBy: user.id,
-      status: 'active',
-    };
-
-    setProjects([...projects, newProject]);
-    setFormData({ name: '', description: '', members: [] });
-    setShowCreateModal(false);
+      if (response.success) {
+        setProjects([response.project, ...projects]);
+        setFormData({ name: '', description: '', members: [] });
+        setShowCreateModal(false);
+      }
+    } catch (error) {
+      console.error('Failed to create project:', error);
+    }
   };
 
   const handleMemberToggle = (userId: string) => {
@@ -49,19 +73,28 @@ const Projects = () => {
   };
 
   const getUserName = (userId: string) => {
-    const foundUser = users.find(u => u.id === userId);
+    const foundUser = users.find((u: any) => u._id === userId);
     return foundUser ? foundUser.name : 'Unknown User';
   };
 
-  const getProjectStats = (projectId: string) => {
-    const projectBugs = bugs.filter(bug => bug.projectId === projectId);
-    return {
-      total: projectBugs.length,
-      open: projectBugs.filter(bug => bug.status === 'open').length,
-      inProgress: projectBugs.filter(bug => bug.status === 'in-progress').length,
-      resolved: projectBugs.filter(bug => bug.status === 'resolved').length,
-    };
-  };
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-48 mb-6"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white rounded-lg shadow-sm border p-6">
+                <div className="h-6 bg-gray-200 rounded w-32 mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -79,82 +112,77 @@ const Projects = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projects.map((project) => {
-          const stats = getProjectStats(project.id);
-          const creator = users.find(u => u.id === project.createdBy);
-          
-          return (
-            <Card key={project.id} className="hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{project.description}</p>
+        {projects.map((project: any) => (
+          <Card key={project._id} className="hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
+                <p className="text-sm text-gray-600 mt-1">{project.description}</p>
+              </div>
+              <button className="text-gray-400 hover:text-gray-600">
+                <MoreHorizontal size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center space-x-2">
+                  <Users size={16} className="text-gray-400" />
+                  <span>{project.members?.length || 0} members</span>
                 </div>
-                <button className="text-gray-400 hover:text-gray-600">
-                  <MoreHorizontal size={20} />
-                </button>
+                <div className="flex items-center space-x-2">
+                  <Calendar size={16} className="text-gray-400" />
+                  <span>{formatDate(project.createdAt)}</span>
+                </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center space-x-2">
-                    <Users size={16} className="text-gray-400" />
-                    <span>{project.members.length} members</span>
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-gray-700">Bug Statistics</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Total:</span>
+                    <span className="font-medium">{project.stats?.totalBugs || 0}</span>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Calendar size={16} className="text-gray-400" />
-                    <span>{formatDate(project.createdAt)}</span>
+                  <div className="flex justify-between">
+                    <span>Open:</span>
+                    <span className="font-medium text-red-600">{project.stats?.openBugs || 0}</span>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-gray-700">Bug Statistics</h4>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Total:</span>
-                      <span className="font-medium">{stats.total}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Open:</span>
-                      <span className="font-medium text-red-600">{stats.open}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>In Progress:</span>
-                      <span className="font-medium text-yellow-600">{stats.inProgress}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Resolved:</span>
-                      <span className="font-medium text-green-600">{stats.resolved}</span>
-                    </div>
+                  <div className="flex justify-between">
+                    <span>In Progress:</span>
+                    <span className="font-medium text-yellow-600">{project.stats?.inProgressBugs || 0}</span>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-gray-700">Team Members</h4>
-                  <div className="flex flex-wrap gap-1">
-                    {project.members.slice(0, 3).map(memberId => (
-                      <span key={memberId} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                        {getUserName(memberId)}
-                      </span>
-                    ))}
-                    {project.members.length > 3 && (
-                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                        +{project.members.length - 3} more
-                      </span>
-                    )}
+                  <div className="flex justify-between">
+                    <span>Resolved:</span>
+                    <span className="font-medium text-green-600">{project.stats?.resolvedBugs || 0}</span>
                   </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t">
-                  <div className="text-xs text-gray-500">
-                    Created by {creator?.name}
-                  </div>
-                  <Badge variant="status" value={project.status} />
                 </div>
               </div>
-            </Card>
-          );
-        })}
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-gray-700">Team Members</h4>
+                <div className="flex flex-wrap gap-1">
+                  {project.members?.slice(0, 3).map((memberId: string) => (
+                    <span key={memberId} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                      {getUserName(memberId)}
+                    </span>
+                  ))}
+                  {project.members?.length > 3 && (
+                    <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                      +{project.members.length - 3} more
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="text-xs text-gray-500">
+                  Created by {project.createdBy?.name || 'Unknown'}
+                </div>
+                <Badge variant="status" value={project.status || 'active'} />
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
 
       {/* Create Project Modal */}
@@ -198,12 +226,12 @@ const Projects = () => {
               Team Members
             </label>
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {users.filter(u => u.id !== user?.id).map(member => (
-                <label key={member.id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
+              {users.filter((u: any) => u._id !== user?.id).map((member: any) => (
+                <label key={member._id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded">
                   <input
                     type="checkbox"
-                    checked={formData.members.includes(member.id)}
-                    onChange={() => handleMemberToggle(member.id)}
+                    checked={formData.members.includes(member._id)}
+                    onChange={() => handleMemberToggle(member._id)}
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <div>

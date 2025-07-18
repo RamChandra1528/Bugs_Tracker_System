@@ -3,37 +3,117 @@ import { Bug, FolderOpen, Users, AlertTriangle, TrendingUp, Activity } from 'luc
 import StatsCard from '../components/dashboard/StatsCard';
 import BugChart from '../components/dashboard/BugChart';
 import RecentActivity from '../components/dashboard/RecentActivity';
-import { useStorage } from '../hooks/useStorage';
-import { User, Project, Bug as BugType, ActivityLog } from '../types';
+import { apiService } from '../services/api';
 
 const Dashboard = () => {
-  const [users] = useStorage<User[]>('users', []);
-  const [projects] = useStorage<Project[]>('projects', []);
-  const [bugs] = useStorage<BugType[]>('bugs', []);
-  const [activities] = useStorage<ActivityLog[]>('activityLogs', []);
+  const [stats, setStats] = useState({
+    totalBugs: 0,
+    openBugs: 0,
+    resolvedBugs: 0,
+    criticalBugs: 0,
+    totalProjects: 0,
+    totalUsers: 0
+  });
+  const [chartData, setChartData] = useState({
+    statusData: [],
+    severityData: []
+  });
+  const [loading, setLoading] = useState(true);
 
-  const totalBugs = bugs.length;
-  const openBugs = bugs.filter(bug => bug.status === 'open').length;
-  const criticalBugs = bugs.filter(bug => bug.severity === 'critical').length;
-  const resolvedBugs = bugs.filter(bug => bug.status === 'resolved').length;
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
 
-  const statusData = [
-    { name: 'Open', value: bugs.filter(b => b.status === 'open').length, color: '#3B82F6' },
-    { name: 'In Progress', value: bugs.filter(b => b.status === 'in-progress').length, color: '#8B5CF6' },
-    { name: 'Resolved', value: bugs.filter(b => b.status === 'resolved').length, color: '#10B981' },
-    { name: 'Closed', value: bugs.filter(b => b.status === 'closed').length, color: '#6B7280' },
-  ];
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load bug statistics
+      const bugStatsResponse = await apiService.getBugStats();
+      if (bugStatsResponse.success) {
+        const { overview, byStatus, bySeverity } = bugStatsResponse.stats;
+        
+        setStats({
+          totalBugs: overview.total,
+          openBugs: overview.open,
+          resolvedBugs: overview.resolved,
+          criticalBugs: overview.critical,
+          totalProjects: 0, // Will be updated below
+          totalUsers: 0 // Will be updated below
+        });
 
-  const severityData = [
-    { name: 'Critical', value: bugs.filter(b => b.severity === 'critical').length, color: '#EF4444' },
-    { name: 'High', value: bugs.filter(b => b.severity === 'high').length, color: '#F97316' },
-    { name: 'Medium', value: bugs.filter(b => b.severity === 'medium').length, color: '#F59E0B' },
-    { name: 'Low', value: bugs.filter(b => b.severity === 'low').length, color: '#10B981' },
-  ];
+        // Format chart data
+        const statusData = byStatus.map((item: any) => ({
+          name: item._id.charAt(0).toUpperCase() + item._id.slice(1).replace('-', ' '),
+          value: item.count,
+          color: getStatusColor(item._id)
+        }));
 
-  const recentActivities = activities
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 5);
+        const severityData = bySeverity.map((item: any) => ({
+          name: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+          value: item.count,
+          color: getSeverityColor(item._id)
+        }));
+
+        setChartData({ statusData, severityData });
+      }
+
+      // Load projects count
+      const projectsResponse = await apiService.getProjects();
+      if (projectsResponse.success) {
+        setStats(prev => ({ ...prev, totalProjects: projectsResponse.projects.length }));
+      }
+
+      // Load users count
+      const usersResponse = await apiService.getUsers();
+      if (usersResponse.success) {
+        setStats(prev => ({ ...prev, totalUsers: usersResponse.users.length }));
+      }
+
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'open': return '#3B82F6';
+      case 'in-progress': return '#8B5CF6';
+      case 'resolved': return '#10B981';
+      case 'closed': return '#6B7280';
+      default: return '#6B7280';
+    }
+  };
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'critical': return '#EF4444';
+      case 'high': return '#F97316';
+      case 'medium': return '#F59E0B';
+      case 'low': return '#10B981';
+      default: return '#6B7280';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-48 mb-6"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white rounded-lg shadow-sm border p-6">
+                <div className="h-4 bg-gray-200 rounded w-24 mb-4"></div>
+                <div className="h-8 bg-gray-200 rounded w-16"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -49,28 +129,28 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           title="Total Bugs"
-          value={totalBugs}
+          value={stats.totalBugs}
           icon={Bug}
           color="blue"
           change={{ value: 12, type: 'increase' }}
         />
         <StatsCard
           title="Open Bugs"
-          value={openBugs}
+          value={stats.openBugs}
           icon={AlertTriangle}
           color="red"
           change={{ value: 8, type: 'increase' }}
         />
         <StatsCard
           title="Projects"
-          value={projects.length}
+          value={stats.totalProjects}
           icon={FolderOpen}
           color="green"
           change={{ value: 5, type: 'increase' }}
         />
         <StatsCard
           title="Team Members"
-          value={users.length}
+          value={stats.totalUsers}
           icon={Users}
           color="purple"
           change={{ value: 2, type: 'increase' }}
@@ -79,35 +159,16 @@ const Dashboard = () => {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <BugChart data={statusData} title="Bugs by Status" />
-        <BugChart data={severityData} title="Bugs by Severity" />
+        <BugChart data={chartData.statusData} title="Bugs by Status" />
+        <BugChart data={chartData.severityData} title="Bugs by Severity" />
       </div>
 
-      {/* Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RecentActivity activities={recentActivities} users={users} bugs={bugs} />
-        
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Project Overview</h3>
-          <div className="space-y-4">
-            {projects.map((project) => {
-              const projectBugs = bugs.filter(bug => bug.projectId === project.id);
-              const openProjectBugs = projectBugs.filter(bug => bug.status === 'open');
-              
-              return (
-                <div key={project.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <h4 className="font-medium text-gray-900">{project.name}</h4>
-                    <p className="text-sm text-gray-600">{project.members.length} members</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-semibold text-gray-900">{projectBugs.length}</p>
-                    <p className="text-sm text-gray-600">{openProjectBugs.length} open</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* Recent Activity Placeholder */}
+      <div className="bg-white rounded-lg shadow-sm border p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+        <div className="text-center py-8 text-gray-500">
+          <Activity size={48} className="mx-auto mb-4 opacity-50" />
+          <p>Activity tracking will be available soon</p>
         </div>
       </div>
     </div>

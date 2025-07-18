@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import { initializeStorage } from './data/mockData';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import Layout from './components/layout/Layout';
 import LoginForm from './components/auth/LoginForm';
@@ -14,10 +13,6 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 
 function App() {
-  useEffect(() => {
-    initializeStorage();
-  }, []);
-
   return (
     <AuthProvider>
       <Router>

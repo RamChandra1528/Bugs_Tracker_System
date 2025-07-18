@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Search, Filter, Bug as BugIcon } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useStorage } from '../hooks/useStorage';
-import { Bug, Project, User } from '../types';
+import { apiService } from '../services/api';
 import Card from '../components/common/Card';
 import Modal from '../components/common/Modal';
 import Badge from '../components/common/Badge';
@@ -10,57 +9,85 @@ import { formatDate } from '../utils/formatters';
 
 const Bugs = () => {
   const { user } = useAuth();
-  const [bugs, setBugs] = useStorage<Bug[]>('bugs', []);
-  const [projects] = useStorage<Project[]>('projects', []);
-  const [users] = useStorage<User[]>('users', []);
+  const [bugs, setBugs] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [users, setUsers] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterSeverity, setFilterSeverity] = useState('all');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    projectId: '',
+    project: '',
     assignedTo: '',
-    severity: 'medium' as Bug['severity'],
-    priority: 'medium' as Bug['priority'],
+    severity: 'medium' as 'low' | 'medium' | 'high' | 'critical',
+    priority: 'medium' as 'low' | 'medium' | 'high',
     tags: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
+  useEffect(() => {
+    loadData();
+  }, []);
 
-    const newBug: Bug = {
-      id: Date.now().toString(),
-      title: formData.title,
-      description: formData.description,
-      projectId: formData.projectId,
-      reportedBy: user.id,
-      assignedTo: formData.assignedTo || undefined,
-      status: 'open',
-      severity: formData.severity,
-      priority: formData.priority,
-      tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
-      attachments: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [bugsResponse, projectsResponse, usersResponse] = await Promise.all([
+        apiService.getBugs(),
+        apiService.getProjects(),
+        apiService.getUsers()
+      ]);
 
-    setBugs([...bugs, newBug]);
-    setFormData({
-      title: '',
-      description: '',
-      projectId: '',
-      assignedTo: '',
-      severity: 'medium',
-      priority: 'medium',
-      tags: '',
-    });
-    setShowCreateModal(false);
+      if (bugsResponse.success) {
+        setBugs(bugsResponse.bugs);
+      }
+      if (projectsResponse.success) {
+        setProjects(projectsResponse.projects);
+      }
+      if (usersResponse.success) {
+        setUsers(usersResponse.users);
+      }
+    } catch (error) {
+      console.error('Failed to load data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filteredBugs = bugs.filter(bug => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await apiService.createBug({
+        title: formData.title,
+        description: formData.description,
+        project: formData.project,
+        assignedTo: formData.assignedTo || undefined,
+        severity: formData.severity,
+        priority: formData.priority,
+        tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+      });
+
+      if (response.success) {
+        setBugs([response.bug, ...bugs]);
+        setFormData({
+          title: '',
+          description: '',
+          project: '',
+          assignedTo: '',
+          severity: 'medium',
+          priority: 'medium',
+          tags: '',
+        });
+        setShowCreateModal(false);
+      }
+    } catch (error) {
+      console.error('Failed to create bug:', error);
+    }
+  };
+
+  const filteredBugs = bugs.filter((bug: any) => {
     const matchesSearch = bug.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          bug.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || bug.status === filterStatus;
@@ -70,24 +97,48 @@ const Bugs = () => {
   });
 
   const getUserName = (userId: string) => {
-    const foundUser = users.find(u => u.id === userId);
+    const foundUser = users.find((u: any) => u._id === userId);
     return foundUser ? foundUser.name : 'Unknown User';
   };
 
   const getProjectName = (projectId: string) => {
-    const project = projects.find(p => p.id === projectId);
+    const project = projects.find((p: any) => p._id === projectId);
     return project ? project.name : 'Unknown Project';
   };
 
-  const updateBugStatus = (bugId: string, newStatus: Bug['status']) => {
-    setBugs(prevBugs =>
-      prevBugs.map(bug =>
-        bug.id === bugId
-          ? { ...bug, status: newStatus, updatedAt: new Date() }
-          : bug
-      )
-    );
+  const updateBugStatus = async (bugId: string, newStatus: string) => {
+    try {
+      const response = await apiService.updateBug(bugId, { status: newStatus });
+      if (response.success) {
+        setBugs(prevBugs =>
+          prevBugs.map((bug: any) =>
+            bug._id === bugId ? { ...bug, status: newStatus } : bug
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Failed to update bug status:', error);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-48 mb-6"></div>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="bg-white rounded-lg shadow-sm border p-6">
+                <div className="h-6 bg-gray-200 rounded w-64 mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -142,8 +193,8 @@ const Bugs = () => {
 
       {/* Bug List */}
       <div className="grid grid-cols-1 gap-4">
-        {filteredBugs.map((bug) => (
-          <Card key={bug.id} className="hover:shadow-md transition-shadow">
+        {filteredBugs.map((bug: any) => (
+          <Card key={bug._id} className="hover:shadow-md transition-shadow">
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-3 mb-2">
@@ -156,7 +207,7 @@ const Bugs = () => {
                 <p className="text-gray-600 mb-4">{bug.description}</p>
                 
                 <div className="flex items-center space-x-6 text-sm text-gray-500">
-                  <span>Project: {getProjectName(bug.projectId)}</span>
+                  <span>Project: {getProjectName(bug.project)}</span>
                   <span>Reported by: {getUserName(bug.reportedBy)}</span>
                   {bug.assignedTo && (
                     <span>Assigned to: {getUserName(bug.assignedTo)}</span>
@@ -164,9 +215,9 @@ const Bugs = () => {
                   <span>Created: {formatDate(bug.createdAt)}</span>
                 </div>
 
-                {bug.tags.length > 0 && (
+                {bug.tags && bug.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-3">
-                    {bug.tags.map((tag, index) => (
+                    {bug.tags.map((tag: string, index: number) => (
                       <span key={index} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                         {tag}
                       </span>
@@ -179,7 +230,7 @@ const Bugs = () => {
                 {(user?.role === 'admin' || user?.role === 'developer' || bug.assignedTo === user?.id) && (
                   <select
                     value={bug.status}
-                    onChange={(e) => updateBugStatus(bug.id, e.target.value as Bug['status'])}
+                    onChange={(e) => updateBugStatus(bug._id, e.target.value)}
                     className="text-sm px-3 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="open">Open</option>
@@ -232,19 +283,19 @@ const Bugs = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="projectId" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="project" className="block text-sm font-medium text-gray-700 mb-2">
                 Project
               </label>
               <select
-                id="projectId"
-                value={formData.projectId}
-                onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
+                id="project"
+                value={formData.project}
+                onChange={(e) => setFormData({ ...formData, project: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               >
                 <option value="">Select a project</option>
-                {projects.map(project => (
-                  <option key={project.id} value={project.id}>{project.name}</option>
+                {projects.map((project: any) => (
+                  <option key={project._id} value={project._id}>{project.name}</option>
                 ))}
               </select>
             </div>
@@ -260,8 +311,8 @@ const Bugs = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Unassigned</option>
-                {users.filter(u => u.role === 'developer' || u.role === 'admin').map(user => (
-                  <option key={user.id} value={user.id}>{user.name}</option>
+                {users.filter((u: any) => u.role === 'developer' || u.role === 'admin').map((user: any) => (
+                  <option key={user._id} value={user._id}>{user.name}</option>
                 ))}
               </select>
             </div>
@@ -275,7 +326,7 @@ const Bugs = () => {
               <select
                 id="severity"
                 value={formData.severity}
-                onChange={(e) => setFormData({ ...formData, severity: e.target.value as Bug['severity'] })}
+                onChange={(e) => setFormData({ ...formData, severity: e.target.value as any })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="low">Low</option>
@@ -292,7 +343,7 @@ const Bugs = () => {
               <select
                 id="priority"
                 value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value as Bug['priority'] })}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="low">Low</option>
