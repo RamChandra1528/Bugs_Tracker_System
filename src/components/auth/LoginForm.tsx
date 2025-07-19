@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { Bug, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
@@ -20,11 +21,14 @@ const LoginForm = () => {
     try {
       const success = await login(email, password);
       if (success) {
-        navigate('/dashboard');
+        toast.success('Welcome back!');
+        navigate('/app/dashboard');
       } else {
+        toast.error('Invalid email or password');
         setError('Invalid email or password');
       }
     } catch (err) {
+      toast.error('An error occurred. Please try again.');
       setError('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -115,6 +119,15 @@ const LoginForm = () => {
                 Sign up
               </button>
             </p>
+            <p className="text-sm text-gray-600 mt-2">
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="font-medium text-blue-600 hover:text-blue-500"
+              >
+                ← Back to Home
+              </button>
+            </p>
           </div>
 
           <div className="text-center">
@@ -123,6 +136,7 @@ const LoginForm = () => {
               <p>admin@bugtracker.com (Admin)</p>
               <p>developer@bugtracker.com (Developer)</p>
               <p>tester@bugtracker.com (Tester)</p>
+              <p className="mt-1 text-gray-400">Password: password123</p>
             </div>
           </div>
         </form>

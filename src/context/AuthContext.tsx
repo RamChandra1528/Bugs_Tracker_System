@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { apiService } from '../services/api';
 import { User } from '../types';
 
@@ -88,6 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     apiService.clearToken();
     setUser(null);
     setIsAuthenticated(false);
+    toast.success('Logged out successfully');
   };
 
   const updateUser = (userData: Partial<User>) => {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { Bug, Mail, Lock, User, Shield, Eye, EyeOff } from 'lucide-react';
 
@@ -38,11 +39,14 @@ const RegisterForm = () => {
     try {
       const success = await register(formData.name, formData.email, formData.password, formData.role, formData.department);
       if (success) {
-        navigate('/dashboard');
+        toast.success('Account created successfully!');
+        navigate('/app/dashboard');
       } else {
+        toast.error('Email already exists');
         setError('Email already exists');
       }
     } catch (err) {
+      toast.error('An error occurred. Please try again.');
       setError('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
@@ -225,6 +229,15 @@ const RegisterForm = () => {
                 className="font-medium text-blue-600 hover:text-blue-500"
               >
                 Sign in
+              </button>
+            </p>
+            <p className="text-sm text-gray-600 mt-2">
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="font-medium text-blue-600 hover:text-blue-500"
+              >
+                ← Back to Home
               </button>
             </p>
           </div>
