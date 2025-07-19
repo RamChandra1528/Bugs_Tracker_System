@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../services/api';
-import { User, Mail, Lock, Shield, Bell, Save } from 'lucide-react';
+import { User, Mail, Lock, Shield, Bell, Save, Camera } from 'lucide-react';
 import Card from '../components/common/Card';
 
 const Settings = () => {
@@ -23,6 +23,7 @@ const Settings = () => {
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,6 +90,25 @@ const Settings = () => {
     }, 1000);
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingAvatar(true);
+    try {
+      const response = await apiService.uploadAvatar(file);
+      if (response.success) {
+        // Update user context with new avatar
+        alert('Avatar updated successfully!');
+      }
+    } catch (error) {
+      console.error('Failed to upload avatar:', error);
+      alert('Failed to upload avatar');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -104,6 +124,40 @@ const Settings = () => {
           </div>
 
           <form onSubmit={handleProfileSubmit} className="space-y-4">
+            <div className="flex items-center space-x-4 mb-6">
+              <div className="relative">
+                <div className="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center overflow-hidden">
+                  {user?.avatar ? (
+                    <img 
+                      src={`${import.meta.env.VITE_API_URL?.replace('/api', '')}${user.avatar}`} 
+                      alt="Avatar" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-white text-2xl font-medium">
+                      {user?.name.charAt(0)}
+                    </span>
+                  )}
+                </div>
+                <label className="absolute bottom-0 right-0 bg-blue-600 text-white p-1 rounded-full cursor-pointer hover:bg-blue-700">
+                  <Camera size={16} />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                    className="hidden"
+                    disabled={uploadingAvatar}
+                  />
+                </label>
+              </div>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">Profile Picture</h3>
+                <p className="text-sm text-gray-600">
+                  {uploadingAvatar ? 'Uploading...' : 'Click the camera icon to upload a new picture'}
+                </p>
+              </div>
+            </div>
+
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                 Full Name

@@ -13,6 +13,8 @@ const userRoutes = require('./routes/users');
 const projectRoutes = require('./routes/projects');
 const bugRoutes = require('./routes/bugs');
 const commentRoutes = require('./routes/comments');
+const teamRoutes = require('./routes/teams');
+const departmentRoutes = require('./routes/departments');
 
 const app = express();
 
@@ -73,6 +75,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/bugs', bugRoutes);
 app.use('/api/comments', commentRoutes);
+app.use('/api/teams', teamRoutes);
+app.use('/api/departments', departmentRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

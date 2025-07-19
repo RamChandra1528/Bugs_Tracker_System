@@ -107,11 +107,11 @@ const getProfile = async (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const { name, email, avatar } = req.body;
     
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { name, email },
+      { name, email, avatar },
       { new: true, runValidators: true }
     );
 
@@ -155,10 +155,38 @@ const changePassword = async (req, res) => {
   }
 };
 
+const uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const avatarUrl = `/uploads/${req.file.filename}`;
+    
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { avatar: avatarUrl },
+      { new: true, runValidators: true }
+    );
+
+    res.json({
+      success: true,
+      user,
+      avatarUrl
+    });
+  } catch (error) {
+    res.status(400).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   getProfile,
   updateProfile,
-  changePassword
+  changePassword,
+  uploadAvatar
 };

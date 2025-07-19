@@ -74,10 +74,18 @@ const Sidebar = () => {
 
       <div className="p-4 border-t">
         <div className="flex items-center space-x-3 mb-4">
-          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-            <span className="text-white text-sm font-medium">
-              {user?.name.charAt(0)}
-            </span>
+          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center overflow-hidden">
+            {user?.avatar ? (
+              <img 
+                src={`${import.meta.env.VITE_API_URL?.replace('/api', '')}${user.avatar}`} 
+                alt="Avatar" 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-white text-sm font-medium">
+                {user?.name.charAt(0)}
+              </span>
+            )}
           </div>
           <div>
             <p className="text-sm font-medium text-gray-800">{user?.name}</p>

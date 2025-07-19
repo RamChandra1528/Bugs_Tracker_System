@@ -161,6 +161,29 @@ class ApiService {
     return this.handleResponse(response);
   }
 
+  async deleteTeam(id: string) {
+    const response = await fetch(`${this.baseURL}/teams/${id}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  // Upload avatar
+  async uploadAvatar(file: File) {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const response = await fetch(`${this.baseURL}/auth/upload-avatar`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+      },
+      body: formData,
+    });
+    return this.handleResponse(response);
+  }
+
   // Users endpoints
   async getUsers() {
     const response = await fetch(`${this.baseURL}/users`, {
