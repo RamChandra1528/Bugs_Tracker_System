@@ -57,9 +57,11 @@ const Projects = () => {
         setProjects([response.project, ...projects]);
         setFormData({ name: '', description: '', members: [] });
         setShowCreateModal(false);
+        alert('Project created successfully!');
       }
     } catch (error) {
       console.error('Failed to create project:', error);
+      alert('Failed to create project');
     }
   };
 
@@ -70,6 +72,21 @@ const Projects = () => {
         ? prev.members.filter(id => id !== userId)
         : [...prev.members, userId]
     }));
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    if (window.confirm('Are you sure you want to delete this project?')) {
+      try {
+        const response = await apiService.deleteProject(projectId);
+        if (response.success) {
+          setProjects(projects.filter((project: any) => project._id !== projectId));
+          alert('Project deleted successfully!');
+        }
+      } catch (error) {
+        console.error('Failed to delete project:', error);
+        alert('Failed to delete project');
+      }
+    }
   };
 
   const getUserName = (userId: string) => {
@@ -122,6 +139,14 @@ const Projects = () => {
               <button className="text-gray-400 hover:text-gray-600">
                 <MoreHorizontal size={20} />
               </button>
+              {(user?.role === 'admin') && (
+                <button
+                  onClick={() => handleDeleteProject(project._id)}
+                  className="text-red-600 hover:text-red-700 text-sm ml-2"
+                >
+                  Delete
+                </button>
+              )}
             </div>
 
             <div className="space-y-4">

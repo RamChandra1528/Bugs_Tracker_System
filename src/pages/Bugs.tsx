@@ -81,9 +81,11 @@ const Bugs = () => {
           tags: '',
         });
         setShowCreateModal(false);
+        alert('Bug reported successfully!');
       }
     } catch (error) {
       console.error('Failed to create bug:', error);
+      alert('Failed to create bug');
     }
   };
 
@@ -118,6 +120,22 @@ const Bugs = () => {
       }
     } catch (error) {
       console.error('Failed to update bug status:', error);
+      alert('Failed to update bug status');
+    }
+  };
+
+  const handleDeleteBug = async (bugId: string) => {
+    if (window.confirm('Are you sure you want to delete this bug?')) {
+      try {
+        const response = await apiService.deleteBug(bugId);
+        if (response.success) {
+          setBugs(bugs.filter((bug: any) => bug._id !== bugId));
+          alert('Bug deleted successfully!');
+        }
+      } catch (error) {
+        console.error('Failed to delete bug:', error);
+        alert('Failed to delete bug');
+      }
     }
   };
 
@@ -238,6 +256,14 @@ const Bugs = () => {
                     <option value="resolved">Resolved</option>
                     <option value="closed">Closed</option>
                   </select>
+                )}
+                {(user?.role === 'admin' || bug.reportedBy === user?.id) && (
+                  <button
+                    onClick={() => handleDeleteBug(bug._id)}
+                    className="text-red-600 hover:text-red-700 text-sm px-2 py-1 border border-red-300 rounded"
+                  >
+                    Delete
+                  </button>
                 )}
               </div>
             </div>

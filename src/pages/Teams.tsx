@@ -63,9 +63,11 @@ const Teams = () => {
         setTeams([response.team, ...teams]);
         setTeamFormData({ name: '', description: '', departmentId: '', leadId: '', members: [] });
         setShowCreateTeamModal(false);
+        alert('Team created successfully!');
       }
     } catch (error) {
       console.error('Failed to create team:', error);
+      alert('Failed to create team');
     }
   };
 
@@ -77,9 +79,11 @@ const Teams = () => {
         setDepartments([response.department, ...departments]);
         setDeptFormData({ name: '', description: '', managerId: '', members: [] });
         setShowCreateDeptModal(false);
+        alert('Department created successfully!');
       }
     } catch (error) {
       console.error('Failed to create department:', error);
+      alert('Failed to create department');
     }
   };
 
@@ -108,6 +112,21 @@ const Teams = () => {
           ? prev.members.filter(id => id !== userId)
           : [...prev.members, userId]
       }));
+    }
+  };
+
+  const handleDeleteTeam = async (teamId: string) => {
+    if (window.confirm('Are you sure you want to delete this team?')) {
+      try {
+        const response = await apiService.deleteTeam(teamId);
+        if (response.success) {
+          setTeams(teams.filter((team: any) => team._id !== teamId));
+          alert('Team deleted successfully!');
+        }
+      } catch (error) {
+        console.error('Failed to delete team:', error);
+        alert('Failed to delete team');
+      }
     }
   };
 
@@ -200,6 +219,14 @@ const Teams = () => {
                 <button className="text-gray-400 hover:text-gray-600">
                   <MoreHorizontal size={20} />
                 </button>
+                {(user?.role === 'admin') && (
+                  <button
+                    onClick={() => handleDeleteTeam(team._id)}
+                    className="text-red-600 hover:text-red-700 text-sm ml-2"
+                  >
+                    Delete
+                  </button>
+                )}
               </div>
 
               <p className="text-gray-600 mb-4">{team.description}</p>
