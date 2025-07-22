@@ -20,15 +20,15 @@ const Sidebar = () => {
   const { user, logout } = useAuth();
 
   const menuItems = [
-    { icon: Home, label: 'Dashboard', path: '/dashboard' },
-    { icon: FolderOpen, label: 'Projects', path: '/projects' },
-    { icon: Bug, label: 'Bugs', path: '/bugs' },
-    { icon: Building, label: 'Teams', path: '/teams' },
-    { icon: Users, label: 'Users', path: '/users', adminOnly: true },
-    { icon: BarChart3, label: 'Reports', path: '/reports' },
-    { icon: TrendingUp, label: 'Analytics', path: '/analytics' },
-    { icon: Shield, label: 'Security', path: '/security' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
+    { icon: Home, label: 'Dashboard', path: '/app/dashboard' },
+    { icon: FolderOpen, label: 'Projects', path: '/app/projects' },
+    { icon: Bug, label: 'Bugs', path: '/app/bugs' },
+    { icon: Building, label: 'Teams', path: '/app/teams' },
+    { icon: Users, label: 'Users', path: '/app/users', adminOnly: true },
+    { icon: BarChart3, label: 'Reports', path: '/app/reports' },
+    { icon: TrendingUp, label: 'Analytics', path: '/app/analytics' },
+    { icon: Shield, label: 'Security', path: '/app/security' },
+    { icon: Settings, label: 'Settings', path: '/app/settings' },
   ];
 
   const filteredMenuItems = menuItems.filter(item => 
