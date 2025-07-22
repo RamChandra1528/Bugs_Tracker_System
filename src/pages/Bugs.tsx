@@ -56,38 +56,73 @@ const Bugs = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await apiService.createBug({
-        title: formData.title,
-        description: formData.description,
-        project: formData.project,
-        assignedTo: formData.assignedTo || undefined,
-        severity: formData.severity,
-        priority: formData.priority,
-        tags: formData.tags.split(',').map(tag => tag.trim()).filter(Boolean),
-      });
+  // const handleSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   try {
+  //         const response = await apiService.createBug({
+  //       title: formData.title.trim(),
+  //       description: formData.description.trim(),
+  //       project: formData.project,
+  //       assignedTo: formData.assignedTo || undefined,
+  //       severity: formData.severity,
+  //       priority: formData.priority,
+  //       tags: typeof formData.tags === 'string'
+  //         ? formData.tags.split(',').map(tag => tag.trim()).filter(Boolean)
+  //         : [],
+  //       reportedBy: user?.id, // Make sure you pass this too
+  //     });
 
-      if (response.success) {
-        setBugs([response.bug, ...bugs]);
-        setFormData({
-          title: '',
-          description: '',
-          project: '',
-          assignedTo: '',
-          severity: 'medium',
-          priority: 'medium',
-          tags: '',
-        });
-        setShowCreateModal(false);
-        alert('Bug reported successfully!');
-      }
-    } catch (error) {
-      console.error('Failed to create bug:', error);
-      alert('Failed to create bug');
+
+  //     if (response.success) {
+  //       setBugs([response.bug, ...bugs]);
+  //       setFormData({
+  //         title: '',
+  //         description: '',
+  //         project: '',
+  //         assignedTo: '',
+  //         severity: 'medium',
+  //         priority: 'medium',
+  //         tags: '',
+  //       });
+  //       setShowCreateModal(false);
+  //       alert('Bug reported successfully!');
+  //     }
+  //   } catch (error) {
+  //     console.error('Failed to create bug:', error);
+  //     alert('Failed to create bug');
+  //   }
+  // };
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  console.log('FormData:', formData);
+
+  try {
+    const response = await apiService.createBug({
+      title: formData.title.trim(),
+      description: formData.description.trim(),
+      project: formData.project,
+      assignedTo: formData.assignedTo || undefined,
+      severity: formData.severity,
+      priority: formData.priority,
+      tags: typeof formData.tags === 'string'
+        ? formData.tags.split(',').map(tag => tag.trim()).filter(Boolean)
+        : [],
+      reportedBy: user?.id, // ✅ Required by backend
+    });
+
+    if (response.success) {
+      // reset form
+      setBugs([response.bug, ...bugs]);
+      setFormData({ title: '', description: '', project: '', assignedTo: '', severity: 'medium', priority: 'medium', tags: '' });
+      setShowCreateModal(false);
+      alert('Bug reported successfully!');
     }
-  };
+  } catch (error) {
+    console.error('Failed to create bug:', error);
+    alert('Failed to create bug');
+  }
+};
 
   const filteredBugs = bugs.filter((bug: any) => {
     const matchesSearch = bug.title.toLowerCase().includes(searchTerm.toLowerCase()) ||

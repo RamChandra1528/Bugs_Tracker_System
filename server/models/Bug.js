@@ -86,14 +86,14 @@ const bugSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes for better query performance
+// Indexes for better performance on queries and text search
 bugSchema.index({ project: 1, status: 1 });
 bugSchema.index({ assignedTo: 1, status: 1 });
 bugSchema.index({ reportedBy: 1 });
 bugSchema.index({ severity: 1, priority: 1 });
 bugSchema.index({ title: 'text', description: 'text' });
 
-// Update resolved/closed timestamps
+// Middleware to update resolvedAt and closedAt timestamps when status changes
 bugSchema.pre('save', function(next) {
   if (this.isModified('status')) {
     if (this.status === 'resolved' && !this.resolvedAt) {

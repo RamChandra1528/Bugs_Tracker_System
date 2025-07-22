@@ -116,21 +116,80 @@ const getBugById = async (req, res) => {
   }
 };
 
+// const createBug = async (req, res) => {
+//   try {
+//     const {
+//       title,
+//       description,
+//       project,
+//       assignedTo,
+//       severity,
+//       priority,
+//       tags,
+//       stepsToReproduce,
+//       expectedBehavior,
+//       actualBehavior,
+//       environment
+//     } = req.body;
+
+//     const bug = await Bug.create({
+//       title,
+//       description,
+//       project,
+//       reportedBy: req.user.id,
+//       assignedTo: assignedTo || null,
+//       severity,
+//       priority,
+//       tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+//       stepsToReproduce,
+//       expectedBehavior,
+//       actualBehavior,
+//       environment
+//     });
+
+//     const populatedBug = await Bug.findById(bug._id)
+//       .populate('project', 'name')
+//       .populate('reportedBy', 'name email')
+//       .populate('assignedTo', 'name email');
+
+//     // Log activity
+//     await logActivity(
+//       bug._id,
+//       req.user.id,
+//       'created',
+//       `Bug "${title}" was created`
+//     );
+
+//     if (assignedTo) {
+//       await logActivity(
+//         bug._id,
+//         req.user.id,
+//         'assigned',
+//         `Bug assigned to ${populatedBug.assignedTo.name}`
+//       );
+//     }
+
+//     res.status(201).json({
+//       success: true,
+//       bug: populatedBug
+//     });
 const createBug = async (req, res) => {
   try {
     const {
-      title,
-      description,
-      project,
-      assignedTo,
-      severity,
-      priority,
-      tags,
-      stepsToReproduce,
-      expectedBehavior,
-      actualBehavior,
-      environment
+      title, description, project, assignedTo, severity, priority, tags,
+      stepsToReproduce, expectedBehavior, actualBehavior, environment
     } = req.body;
+
+    if (!title || !description || !project) {
+      return res.status(400).json({ success: false, message: 'Title, description and project are required' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(project)) {
+      return res.status(400).json({ success: false, message: 'Invalid project ID' });
+    }
+    if (assignedTo && !mongoose.Types.ObjectId.isValid(assignedTo)) {
+      return res.status(400).json({ success: false, message: 'Invalid assignedTo ID' });
+    }
 
     const bug = await Bug.create({
       title,
@@ -140,38 +199,11 @@ const createBug = async (req, res) => {
       assignedTo: assignedTo || null,
       severity,
       priority,
-      tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
+      tags: tags ? tags.split(',').map(t => t.trim()) : [],
       stepsToReproduce,
       expectedBehavior,
       actualBehavior,
       environment
-    });
-
-    const populatedBug = await Bug.findById(bug._id)
-      .populate('project', 'name')
-      .populate('reportedBy', 'name email')
-      .populate('assignedTo', 'name email');
-
-    // Log activity
-    await logActivity(
-      bug._id,
-      req.user.id,
-      'created',
-      `Bug "${title}" was created`
-    );
-
-    if (assignedTo) {
-      await logActivity(
-        bug._id,
-        req.user.id,
-        'assigned',
-        `Bug assigned to ${populatedBug.assignedTo.name}`
-      );
-    }
-
-    res.status(201).json({
-      success: true,
-      bug: populatedBug
     });
   } catch (error) {
     res.status(400).json({ 
